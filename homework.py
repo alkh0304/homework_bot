@@ -14,7 +14,7 @@ PRACTICUM_TOKEN = os.getenv('TOKENPR')
 TELEGRAM_TOKEN = os.getenv('TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('CHATTOKEN')
 
-RETRY_TIME = 600
+UPDATE_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 BOT = telegram.Bot(token=TELEGRAM_TOKEN)
@@ -57,10 +57,12 @@ def get_api_answer(current_timestamp):
         if response.status_code != HTTPStatus.OK:
             error_msg = 'Неверный статус ответа от API'
             logger.error(error_msg)
+            send_message(BOT, error_msg)
             raise ConnectionError(error_msg)
     except Exception as error:
         error_msg = f'Возникла ошибка при запросе к основному API: {error}'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise ConnectionError(error_msg)
     response = response.json()
     return response
@@ -75,10 +77,12 @@ def check_response(response):
     if 'homeworks' not in response:
         error_msg = 'У homeworks отсутствует ключ'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise KeyError(error_msg)
     if not isinstance(response['homeworks'], list):
         error_msg = 'Неверный ответ API на уровне homeworks'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise TypeError(error_msg)
     homework = response.get('homeworks')
     return homework
@@ -91,10 +95,12 @@ def parse_status(homework):
     if homework_name is None or homework_status is None:
         error_msg = 'Неверный ответ сервера'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise KeyError(error_msg)
     if homework_status not in HOMEWORK_STATUSES.keys():
         error_msg = 'Недопустимый статус работы'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise KeyError(error_msg)
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -119,6 +125,7 @@ def main():
     if not check_tokens():
         error_msg = 'Возникла ошибка при проверке токенов'
         logger.error(error_msg)
+        send_message(BOT, error_msg)
         raise KeyError(error_msg)
     current_timestamp = int(time.time())
     while True:
@@ -129,12 +136,13 @@ def main():
                 send_message(BOT, parse_status(homework[0]))
             current_timestamp = response.get('current_date',
                                              current_timestamp)
-            time.sleep(RETRY_TIME)
+            time.sleep(UPDATE_TIME)
 
         except Exception as error:
             error_msg = f'Возникла ошибка в работе программы: {error}'
             logger.error(error_msg)
-            time.sleep(RETRY_TIME)
+            send_message(BOT, error_msg)
+            time.sleep(UPDATE_TIME)
 
 
 if __name__ == '__main__':
