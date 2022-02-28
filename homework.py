@@ -17,7 +17,6 @@ TELEGRAM_CHAT_ID = os.getenv('CHATTOKEN')
 UPDATE_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
-BOT = telegram.Bot(token=TELEGRAM_TOKEN)
 
 HOMEWORK_STATUSES = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
@@ -33,6 +32,16 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler('bot_logs.log')
 logger.addHandler(handler)
+
+
+def error_message(error):
+    """Сохраняет лог и отправляет сообщение об ошибке в телеграм."""
+    BOT = telegram.Bot(token=TELEGRAM_TOKEN)
+    logger.error(error)
+    BOT.send_message(
+        chat_id=TELEGRAM_CHAT_ID,
+        text=error
+    )
 
 
 def send_message(bot, message):
@@ -56,13 +65,11 @@ def get_api_answer(current_timestamp):
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
             error_msg = 'Неверный статус ответа от API'
-            logger.error(error_msg)
-            send_message(BOT, error_msg)
+            error_message(error_msg)
             raise ConnectionError(error_msg)
     except Exception as error:
         error_msg = f'Возникла ошибка при запросе к основному API: {error}'
-        logger.error(error_msg)
-        send_message(BOT, error_msg)
+        error_message(error_msg)
         raise ConnectionError(error_msg)
     response = response.json()
     return response
@@ -76,13 +83,11 @@ def check_response(response):
         raise TypeError(error_msg)
     if 'homeworks' not in response:
         error_msg = 'У homeworks отсутствует ключ'
-        logger.error(error_msg)
-        send_message(BOT, error_msg)
+        error_message(error_msg)
         raise KeyError(error_msg)
     if not isinstance(response['homeworks'], list):
         error_msg = 'Неверный ответ API на уровне homeworks'
-        logger.error(error_msg)
-        send_message(BOT, error_msg)
+        error_message(error_msg)
         raise TypeError(error_msg)
     homework = response.get('homeworks')
     return homework
@@ -95,12 +100,10 @@ def parse_status(homework):
     if homework_name is None or homework_status is None:
         error_msg = 'Неверный ответ сервера'
         logger.error(error_msg)
-        send_message(BOT, error_msg)
         raise KeyError(error_msg)
     if homework_status not in HOMEWORK_STATUSES.keys():
         error_msg = 'Недопустимый статус работы'
-        logger.error(error_msg)
-        send_message(BOT, error_msg)
+        error_message(error_msg)
         raise KeyError(error_msg)
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -122,10 +125,10 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
+    BOT = telegram.Bot(token=TELEGRAM_TOKEN)
     if not check_tokens():
         error_msg = 'Возникла ошибка при проверке токенов'
-        logger.error(error_msg)
-        send_message(BOT, error_msg)
+        error_message(error_msg)
         raise KeyError(error_msg)
     current_timestamp = int(time.time())
     while True:
@@ -140,8 +143,7 @@ def main():
 
         except Exception as error:
             error_msg = f'Возникла ошибка в работе программы: {error}'
-            logger.error(error_msg)
-            send_message(BOT, error_msg)
+            error_message(error_msg)
             time.sleep(UPDATE_TIME)
 
 
