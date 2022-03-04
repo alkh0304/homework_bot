@@ -95,33 +95,35 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
-    BOT = telegram.Bot(token=TELEGRAM_TOKEN)
-    ERROR_LIST = []
-    if not check_tokens():
-        logger.error('Возникла ошибка при проверке токенов')
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    error_list = []
     current_timestamp = int(time.time())
     while True:
         try:
             response = get_api_answer(current_timestamp)
             homework = check_response(response)
             if homework:
-                send_message(BOT, parse_status(homework[0]))
-                ERROR_LIST.clear()
+                send_message(bot, parse_status(homework[0]))
+                error_list.clear()
             else:
+                error_list.clear()
                 logger.info('Статус домашнего задания не обновился')
             current_timestamp = response.get('current_date')
         except Exception as error:
             error_msg = f'Возникла ошибка в работе программы: {error}'
             logger.error(error_msg)
-            if error not in ERROR_LIST:
-                BOT.send_message(
+            if error_msg not in error_list:
+                bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID,
                     text=error_msg
                 )
-                ERROR_LIST.append(error)
+                error_list.append(error_msg)
         finally:
             time.sleep(UPDATE_TIME)
 
 
 if __name__ == '__main__':
-    main()
+    if check_tokens():
+        main()
+    else:
+        logger.error('Ошибка при проверке токенов')
