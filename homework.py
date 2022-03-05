@@ -104,10 +104,9 @@ def main():
             homework = check_response(response)
             if homework:
                 send_message(bot, parse_status(homework[0]))
-                error_list.clear()
             else:
-                error_list.clear()
                 logger.info('Статус домашнего задания не обновился')
+            error_list.clear()
             current_timestamp = response.get('current_date')
         except Exception as error:
             error_msg = f'Возникла ошибка в работе программы: {error}'
